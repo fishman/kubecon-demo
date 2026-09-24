@@ -1,0 +1,34 @@
+name: vultr-gpu
+
+vars:
+  stage: vultr-gpu
+
+components:
+  terraform:
+    vke:
+      vars:
+        cluster_name: hami-demo
+        region: ewr
+        kubernetes_version: !env VULTR_K8S_VERSION
+        gpu_plan: !env VULTR_GPU_PLAN
+        gpu_node_count: 1
+
+  helmfile:
+    hami:
+      dependencies:
+        components:
+          - name: vke
+            kind: terraform
+      vars:
+        gpu_node_label: gpu
+        gpu_node_value: "on"
+        hami_chart_version: "2.10.0"
+    hami-demo:
+      dependencies:
+        components:
+          - name: hami
+            kind: helmfile
+      vars:
+        gpu_node_label: gpu
+        gpu_node_value: "on"
+        gpu_memory_mib: 1024

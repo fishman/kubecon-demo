@@ -1,0 +1,11 @@
+{{- $_ := requiredEnv "KUBECONFIG" -}}
+releases:
+  - name: hami-demo
+    namespace: default
+    chart: ./chart
+    wait: true
+    values:
+      - gpu:
+          nodeSelector:
+            {{ .Values.gpu_node_label }}: {{ .Values.gpu_node_value | quote }}
+          memoryMiB: {{ .Values.gpu_memory_mib }}

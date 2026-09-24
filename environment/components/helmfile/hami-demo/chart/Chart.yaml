@@ -1,0 +1,4 @@
+apiVersion: v2
+name: hami-demo
+version: 0.1.0
+description: One small NVIDIA GPU Pod for checking HAMi memory allocation.

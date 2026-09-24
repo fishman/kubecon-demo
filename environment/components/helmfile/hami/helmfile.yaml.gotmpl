@@ -1,0 +1,20 @@
+{{- $_ := requiredEnv "KUBECONFIG" -}}
+repositories:
+  - name: hami-charts
+    url: https://project-hami.github.io/HAMi/
+
+releases:
+  - name: hami
+    namespace: kube-system
+    chart: hami-charts/hami
+    version: {{ .Values.hami_chart_version | quote }}
+    wait: true
+    atomic: true
+    values:
+      - global:
+          managedNodeSelectorEnable: true
+          managedNodeSelector:
+            {{ .Values.gpu_node_label }}: {{ .Values.gpu_node_value | quote }}
+        devicePlugin:
+          nvidiaNodeSelector:
+            {{ .Values.gpu_node_label }}: {{ .Values.gpu_node_value | quote }}

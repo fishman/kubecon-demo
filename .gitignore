@@ -3,3 +3,10 @@ visualization_output/
 output/
 __pycache__
 *.pyc
+.terraform/
+*.tfstate*
+*.tfplan
+*.planfile
+environment/kubeconfigs/
+*.terraform.tfvars.json
+*.helmfile.vars.yaml

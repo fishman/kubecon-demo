@@ -1,0 +1,5 @@
+image: nvidia/cuda:12.8.1-base-ubuntu24.04
+gpu:
+  nodeSelector:
+    gpu: "on"
+  memoryMiB: 1024

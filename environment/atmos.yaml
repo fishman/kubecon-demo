@@ -1,0 +1,14 @@
+base_path: .
+
+components:
+  terraform:
+    base_path: components/terraform
+  helmfile:
+    use_eks: false
+    base_path: components/helmfile
+
+stacks:
+  base_path: stacks
+  included_paths:
+    - "**/*.yaml"
+  name_pattern: "{stage}"

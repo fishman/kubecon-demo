@@ -15,6 +15,6 @@ This project provides a small [HAMi](https://project-hami.io/) installation exam
 
 ## Start
 
-Select a GPU plan available in your Vultr region and a supported VKE version. Review GPU cost and follow the [deployment guide](deployment.md) for credential handling, node preparation, plan/apply commands, runtime checks, and teardown. The node needs a working NVIDIA driver and container toolkit **before** HAMi is applied. After HAMi starts, inspect GPU capacity and run the optional Pod to check the memory it sees.
+Select a GPU plan available in your Vultr region and a supported VKE version, then follow the [deployment guide](deployment.md) for credential handling, node preparation, plan/apply, runtime checks, and teardown. The node needs a working NVIDIA driver and container toolkit **before** HAMi is applied.
 
-The Terraform state contains a sensitive kubeconfig; this repository ignores local state and kubeconfigs but does not configure a shared remote backend. No cloud apply is automated by the documentation.
+Terraform state contains the cluster kubeconfig. Local state and kubeconfigs are gitignored; no shared remote backend is configured.

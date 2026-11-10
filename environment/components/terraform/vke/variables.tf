@@ -6,6 +6,11 @@ variable "cluster_name" {
 variable "region" {
   type        = string
   description = "Vultr region with the selected NVIDIA GPU VKE plan."
+
+  validation {
+    condition     = length(trimspace(var.region)) > 0
+    error_message = "VULTR_REGION must be a Vultr region id."
+  }
 }
 
 variable "kubernetes_version" {

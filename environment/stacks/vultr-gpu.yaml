@@ -8,7 +8,7 @@ components:
     vke:
       vars:
         cluster_name: hami-demo
-        region: ewr
+        region: !env VULTR_REGION
         kubernetes_version: !env VULTR_K8S_VERSION
         gpu_plan: !env VULTR_GPU_PLAN
         gpu_node_count: 1

@@ -12,13 +12,12 @@ Run HAMi on a Vultr Kubernetes Engine (VKE) cluster with one NVIDIA GPU worker. 
 
 ## Start here
 
-Provisioning a VKE GPU worker costs money. Before applying, find an **NVIDIA** plan available in your region and a current VKE version with `vultr-cli regions availability ewr` and `vultr-cli kubernetes versions`. Confirm the node image provides an NVIDIA driver and container runtime/toolkit compatible with [HAMi's NVIDIA prerequisites](https://project-hami.io/docs/installation/prerequisites#preparing-your-gpu-nodes). HAMi does not install them.
+Pick an **NVIDIA** plan and VKE version with `vultr-cli regions availability "$VULTR_REGION"` and `vultr-cli kubernetes versions`. The node image must already have an NVIDIA driver and container runtime/toolkit matching [HAMi's NVIDIA prerequisites](https://project-hami.io/docs/installation/prerequisites#preparing-your-gpu-nodes). HAMi does not install them.
 
-From a trusted local shell, supply `VULTR_API_KEY` to Terraform without adding it to any repository file. Supply the discovered plan and version as `VULTR_GPU_PLAN` and `VULTR_K8S_VERSION`. Then:
+Export `VULTR_API_KEY`, `VULTR_REGION`, `VULTR_GPU_PLAN`, and `VULTR_K8S_VERSION`. Then:
 
 ```bash
 cd environment
-umask 077
 atmos terraform plan vke -s vultr-gpu
 atmos terraform apply vke -s vultr-gpu
 mkdir -p kubeconfigs
@@ -31,6 +30,6 @@ atmos helmfile apply hami-demo -s vultr-gpu
 kubectl exec hami-demo-gpu -- nvidia-smi
 ```
 
-**Stop before the HAMi apply** unless the labeled node's driver and NVIDIA container runtime are working and no other device plugin owns `nvidia.com/gpu` on that node. `nvidia.com/gpu` capacity may appear only *after* HAMi's device plugin starts. Check `kubectl get pods -n kube-system`, GPU node capacity, and the demo Pod's scheduler/limits before treating its `nvidia-smi` output as proof of a 1024 MiB allocation.
+**Stop before the HAMi apply** unless the labeled node's driver and NVIDIA container runtime work and no other device plugin owns `nvidia.com/gpu` on that node. Check `kubectl get pods -n kube-system` and GPU node capacity. The demo Pod's `nvidia-smi` output is not proof of a 1024 MiB allocation unless it shows 1024 MiB total.
 
-See [the full deployment procedure](docs/deployment.md) for prerequisites, safe kubeconfig handling, diagnostics, and reverse-order teardown. The single-operator Terraform state contains sensitive kubeconfig material: it is ignored locally, not a shared team backend. No cloud apply is performed by this repository.
+See [the full deployment procedure](docs/deployment.md). Terraform state holds the cluster kubeconfig; it is gitignored and local to one operator, not a shared backend.

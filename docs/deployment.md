@@ -2,27 +2,27 @@
 title: Deployment
 ---
 
-This repo provisions **one Vultr VKE cluster** with Atmos. The default Helmfile component installs only HAMi. An optional second component installs one idle CUDA Pod to inspect a 1024 MiB HAMi allocation. The larger workloads in `demo/` are separate; this procedure does not deploy them.
+This repo provisions **one Vultr VKE cluster** with Atmos. The default Helmfile component installs only HAMi; an optional second installs one idle CUDA Pod to inspect a 1024 MiB HAMi allocation. The larger workloads in `demo/` are not deployed here.
 
 ## Prerequisites
 
-- A Vultr account with permission and quota for a **VKE NVIDIA GPU** worker. Check price and availability for your region first; applying Terraform creates billable resources.
+- A Vultr account with permission and quota for a **VKE NVIDIA GPU** worker.
 - `atmos`, Terraform 1.6+, Helm, Helmfile, `kubectl`, and `vultr-cli` installed. Configure the CLI in your own shell. The Vultr Terraform provider takes `VULTR_API_KEY` from the environment, not from an Atmos stack.
 - A GPU worker image with an NVIDIA driver and [NVIDIA Container Toolkit/runtime configured for HAMi](https://project-hami.io/docs/installation/prerequisites#preparing-your-gpu-nodes). This configuration does **not** install a driver or GPU Operator. Only use an NVIDIA GPU plan; the demo does not support AMD GPUs.
 - A private single-operator Terraform state directory. Terraform state includes the cluster kubeconfig. For team use, configure a protected remote backend before provisioning; do not reuse someone else's state key or import an existing cluster without its owner.
 
 ## Provision VKE
 
-From the repository root, use your authenticated local terminal. Choose the plan actually returned for the region, and a currently supported VKE version. Both are required; a missing input becomes empty in `atmos describe` and is rejected by Terraform variable validation during plan.
+Choose the plan actually returned for the region and a currently supported VKE version. An unset env var resolves to an empty Atmos variable and is rejected by Terraform validation at plan.
 
 ```bash
 cd environment
-umask 077
-vultr-cli regions availability ewr
+read -r -p 'Vultr region: ' VULTR_REGION
+vultr-cli regions availability "$VULTR_REGION"
 vultr-cli kubernetes versions
-read -r -p 'NVIDIA VKE plan available in ewr: ' VULTR_GPU_PLAN
+read -r -p "NVIDIA VKE plan available in $VULTR_REGION: " VULTR_GPU_PLAN
 read -r -p 'Supported VKE version: ' VULTR_K8S_VERSION
-export VULTR_GPU_PLAN VULTR_K8S_VERSION
+export VULTR_REGION VULTR_GPU_PLAN VULTR_K8S_VERSION
 read -r -s -p 'Vultr API key: ' VULTR_API_KEY
 printf '\n'
 export VULTR_API_KEY
@@ -32,11 +32,9 @@ atmos terraform apply vke -s vultr-gpu
 unset VULTR_API_KEY
 ```
 
-Set `umask 077` **before** Terraform plan or apply: Terraform state and its backups can contain the kubeconfig and inherit the shell's file permissions. If state already exists from a weaker umask, restrict its permissions and treat prior access as a credential-exposure incident.
+Terraform state and its backups contain the kubeconfig. Keep the state directory private. No key goes into `stacks/vultr-gpu.yaml`, a Helmfile variable, or a committed file. The provisioned pool has one worker labeled `gpu=on`. GPU inventory moves; if the plan or version disappears between the listing and the apply, pick a supported one rather than reusing the old value.
 
-No key goes into `stacks/vultr-gpu.yaml`, a Helmfile variable, or a committed file. The provisioned pool has one worker labeled `gpu=on`. If plan/version availability changes between the listing and the apply, stop and choose supported inputs instead of assuming an old value works.
-
-Write the sensitive kubeconfig with restrictive permissions. This path is ignored by Git:
+This path is gitignored:
 
 ```bash
 mkdir -p kubeconfigs
@@ -88,20 +86,20 @@ kubectl get pod hami-demo-gpu -o jsonpath='{.spec.schedulerName}{"\n"}{.spec.con
 kubectl exec hami-demo-gpu -- nvidia-smi
 ```
 
-The Pod must use `hami-scheduler`, request `nvidia.com/gpu: 1` and `nvidia.com/gpumem: 1024`, and show **1024 MiB total** GPU memory inside `nvidia-smi`. A Ready Pod or requested limit alone does not prove the runtime applied a memory limit. The demo release does not atomically roll back, so if Helmfile times out on a Pending Pod, run `kubectl describe pod hami-demo-gpu` and inspect scheduler/events before deleting that release. If `nvidia-smi` shows full physical memory or cannot see the device, check driver/toolkit/runtime configuration and device-plugin logs before claiming HAMi allocation works.
+The Pod must use `hami-scheduler`, request `nvidia.com/gpu: 1` and `nvidia.com/gpumem: 1024`, and show **1024 MiB total** inside `nvidia-smi`. A Ready Pod or a requested limit proves neither. If Helmfile times out on a Pending Pod, run `kubectl describe pod hami-demo-gpu` and read the scheduler events. If `nvidia-smi` reports full physical memory or no device, the driver, toolkit, runtime, or device plugin is wrong.
 
 ## Tear down
 
-From `hami-demo/environment`, restore the original plan/version and explicitly select the saved VKE kubeconfig even in a new shell. Confirm the cluster before removing releases. Terraform destroy removes billable cloud resources; re-supply `VULTR_API_KEY` in your trusted terminal and review the destroy plan first.
+From `hami-demo/environment`, restore the original region/plan/version and select the saved kubeconfig. Confirm the cluster context before removing releases.
 
 ```bash
-umask 077
 export KUBECONFIG="$PWD/kubeconfigs/vultr-gpu.yaml"
 kubectl config current-context
 kubectl get nodes -l gpu=on
+read -r -p 'Original Vultr region: ' VULTR_REGION
 read -r -p 'Original NVIDIA VKE plan: ' VULTR_GPU_PLAN
 read -r -p 'Original VKE version: ' VULTR_K8S_VERSION
-export VULTR_GPU_PLAN VULTR_K8S_VERSION
+export VULTR_REGION VULTR_GPU_PLAN VULTR_K8S_VERSION
 atmos helmfile destroy hami-demo -s vultr-gpu
 atmos helmfile destroy hami -s vultr-gpu
 read -r -s -p 'Vultr API key: ' VULTR_API_KEY
@@ -109,8 +107,8 @@ printf '\n'
 export VULTR_API_KEY
 atmos terraform plan vke -s vultr-gpu -destroy
 atmos terraform destroy vke -s vultr-gpu
-unset VULTR_API_KEY VULTR_GPU_PLAN VULTR_K8S_VERSION KUBECONFIG
+unset VULTR_API_KEY VULTR_REGION VULTR_GPU_PLAN VULTR_K8S_VERSION KUBECONFIG
 rm -f kubeconfigs/vultr-gpu.yaml
 ```
 
-These instructions describe checks to perform on a real cluster. Offline Terraform validation and Helmfile rendering do **not** prove that a particular Vultr GPU image has working drivers, that a plan is available, or that the in-container 1024 MiB limit has been observed.
+Offline Terraform validation and Helmfile rendering prove nothing about a live cluster: not that the Vultr GPU image has working drivers, not that the plan is in stock, not that the in-container 1024 MiB limit was applied.

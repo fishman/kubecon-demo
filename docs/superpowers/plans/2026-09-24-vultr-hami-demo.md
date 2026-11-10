@@ -74,7 +74,7 @@ components:
 ```
 
 - [ ] **Step 3: Create Terraform source.** Adapt `../vultr_infra/infrastructure/components/terraform/vke/main.tf`: require Terraform `>= 1.6.0`, Vultr provider `~> 2.32`, create `vultr_kubernetes` with one `gpu=on` node pool. Expose `cluster_id` and sensitive `kube_config`; use `base64decode(vultr_kubernetes.this.kube_config)` because the provider's attribute is base64 encoded. Declare typed inputs and reject empty plan/version strings. A mock-provider Terraform test asserts `kube_config` yields plaintext YAML. No provisioners or inherited state backend.
-- [ ] **Step 4: Protect local material.** Ignore `.terraform/`, `*.tfstate*`, `*.tfplan`, `*.planfile`, `*.terraform.tfvars.json`, `*.helmfile.vars.yaml`, and `environment/kubeconfigs/`; keep `.terraform.lock.hcl` tracked. Set `umask 077` before any Terraform plan/apply in the runbook because state contains credentials.
+- [ ] **Step 4: Protect local material.** Ignore `.terraform/`, `*.tfstate*`, `*.tfplan`, `*.planfile`, `*.terraform.tfvars.json`, `*.helmfile.vars.yaml`, and `environment/kubeconfigs/`; keep `.terraform.lock.hcl` tracked. Keep the state directory private; it contains credentials.
 - [ ] **Step 5: GREEN.** Resolve the stack with fake plan/version values. Missing values show as empty in `atmos describe`; confirm Terraform validation rejects each empty value without a real API key. Run `terraform fmt -check`, `terraform init -backend=false`, `terraform validate`, and the mocked `terraform test`. Never use real credentials for these checks.
 
 ### Task 2: HAMi-only Helmfile
@@ -151,12 +151,12 @@ spec:
 
 ```bash
 cd environment
-umask 077
-vultr-cli regions availability ewr
+read -r -p 'Vultr region: ' VULTR_REGION
+vultr-cli regions availability "$VULTR_REGION"
 vultr-cli kubernetes versions
-read -r -p 'NVIDIA VKE plan available in ewr: ' VULTR_GPU_PLAN
+read -r -p "NVIDIA VKE plan available in $VULTR_REGION: " VULTR_GPU_PLAN
 read -r -p 'Supported VKE version: ' VULTR_K8S_VERSION
-export VULTR_GPU_PLAN VULTR_K8S_VERSION
+export VULTR_REGION VULTR_GPU_PLAN VULTR_K8S_VERSION
 # Provide VULTR_API_KEY only in the operator's trusted shell.
 atmos terraform plan vke -s vultr-gpu
 atmos terraform apply vke -s vultr-gpu
